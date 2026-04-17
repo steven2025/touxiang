@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI年龄生肖相机</title>
+  <style>
+    :root {
+      --bg: #eef3ff;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: rgba(255,255,255,0.26);
+      --primary: #2563eb;
+      --primary-soft: rgba(37,99,235,0.12);
+      --dark: rgba(17,24,39,0.68);
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+      --radius: 24px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      background: linear-gradient(180deg, #f7f9ff 0%, #edf3ff 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      overscroll-behavior: none;
+    }
+
+    .app {
+      width: min(100%, 560px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 12px 12px calc(108px + var(--safe-bottom));
+      position: relative;
+    }
+
+    .viewer {
+      position: relative;
+      min-height: calc(100vh - 132px - var(--safe-bottom));
+      border-radius: 28px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(168,85,247,0.18), transparent 24%),
+        linear-gradient(180deg, #f5f8ff 0%, #e8efff 100%);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.75);
+    }
+
+    .viewer-image,
+    .viewer-empty {
+      position: absolute;
+      inset: 0;
+    }
+
+    .viewer-image {
+      width: 100%;
+      height: 100%;
+      display: none;
+      object-fit: cover;
+      background: #f3f4f6;
+    }
+
+    .viewer-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .viewer-empty strong {
+      display: block;
+      color: var(--text);
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+
+    .viewer-top {
+      position: absolute;
+      inset: 0 0 auto 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 14px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .floating,
+    .mini-tag,
+    .hint-pill {
+      backdrop-filter: blur(12px);
+      background: rgba(17,24,39,0.40);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 10px 24px rgba(15,23,42,0.18);
+    }
+
+    .floating {
+      border-radius: 999px;
+      padding: 10px 14px;
+      max-width: min(72%, 280px);
+      pointer-events: auto;
+    }
+
+    .scene-title {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .scene-desc {
+      font-size: 12px;
+      opacity: 0.95;
+      line-height: 1.45;
+    }
+
+    .mini-tag {
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: auto;
+    }
+
+    .viewer-bottom {
+      position: absolute;
+      inset: auto 0 14px 0;
+      display: flex;
+      justify-content: center;
+      z-index: 4;
+      padding: 0 14px;
+      pointer-events: none;
+    }
+
+    .hint-pill {
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+      max-width: 100%;
+      pointer-events: auto;
+    }
+
+    .status-inline {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 70px;
+      z-index: 5;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      background: rgba(17,24,39,0.58);
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status-inline.show {
+      display: flex;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #60a5fa;
+      flex-shrink: 0;
+    }
+
+    .loading-mask {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(17,24,39,0.36);
+      color: #fff;
+      backdrop-filter: blur(10px);
+    }
+
+    .loading-mask.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.28);
+      border-top-color: #fff;
+      animation: spin .9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .control-sheet {
+      position: fixed;
+      left: 50%;
+      bottom: calc(84px + var(--safe-bottom));
+      transform: translate(-50%, 18px);
+      width: min(calc(100% - 24px), 536px);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+
+    .control-sheet.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+
+    .sheet-card {
+      border-radius: 24px;
+      padding: 14px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.14);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.75);
+    }
+
+    .sheet-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .sheet-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .sheet-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .close-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #334155;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .age-panel,
+    .zodiac-panel {
+      display: none;
+    }
+
+    .age-panel.show,
+    .zodiac-panel.show {
+      display: block;
+    }
+
+    .age-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .age-current {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--primary);
+    }
+
+    .age-tip {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .range-wrap {
+      padding: 8px 2px 4px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 40px;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #93c5fd 0%, #3b82f6 45%, #8b5cf6 100%);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      margin-top: -10px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid var(--primary);
+      box-shadow: 0 6px 18px rgba(37,99,235,0.28);
+    }
+
+    .age-marks {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .age-actions,
+    .chooser-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .ghost-btn,
+    .primary-btn,
+    .soft-btn,
+    .select-trigger,
+    .option-chip,
+    .bottom-btn {
+      border: none;
+      cursor: pointer;
+      transition: transform .14s ease, opacity .14s ease, background .14s ease;
+    }
+
+    .ghost-btn:active,
+    .primary-btn:active,
+    .soft-btn:active,
+    .select-trigger:active,
+    .option-chip:active,
+    .bottom-btn:active {
+      transform: scale(.98);
+    }
+
+    .ghost-btn,
+    .primary-btn,
+    .soft-btn {
+      min-height: 44px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(37,99,235,0.20);
+    }
+
+    .ghost-btn {
+      background: #eef2ff;
+      color: #334155;
+    }
+
+    .soft-btn {
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #e5e7eb;
+    }
+
+    .select-trigger {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: #f8fbff;
+      border: 1px solid #dbe6ff;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .select-sub {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .hidden-menu {
+      display: none;
+      margin-top: 10px;
+      gap: 8px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .hidden-menu.show {
+      display: grid;
+    }
+
+    .option-chip {
+      min-height: 44px;
+      border-radius: 14px;
+      background: #f3f6fb;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    .option-chip.active {
+      background: rgba(37,99,235,0.12);
+      color: var(--primary);
+      border-color: rgba(37,99,235,0.2);
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.16);
+      backdrop-filter: blur(5px);
+      z-index: 18;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .22s ease;
+    }
+
+    .backdrop.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: min(100%, 560px);
+      z-index: 30;
+      padding: 10px 12px calc(12px + var(--safe-bottom));
+      background: linear-gradient(180deg, rgba(247,249,255,0) 0%, rgba(247,249,255,0.75) 20%, rgba(247,249,255,0.98) 42%, rgba(247,249,255,1) 100%);
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(255,255,255,0.78);
+      box-shadow: 0 18px 45px rgba(15,23,42,0.10);
+      backdrop-filter: blur(16px);
+    }
+
+    .bottom-btn {
+      min-height: 62px;
+      border-radius: 18px;
+      background: #f8fbff;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    .bottom-btn.active {
+      color: var(--primary);
+      background: rgba(37,99,235,0.12);
+      border-color: rgba(37,99,235,0.18);
+    }
+
+    .bottom-btn .icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(15,23,42,0.42);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-card {
+      width: min(100%, 420px);
+      max-height: 86vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 24px;
+      padding: 14px;
+      box-shadow: 0 22px 48px rgba(15,23,42,0.25);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .modal-desc {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .confirm-preview {
+      width: 100%;
+      aspect-ratio: 1 / 1.18;
+      object-fit: cover;
+      border-radius: 18px;
+      background: #f3f4f6;
+      margin-bottom: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    @media (max-width: 380px) {
+      .app {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .scene-title {
+        font-size: 16px;
+      }
+
+      .bottom-btn {
+        min-height: 58px;
+      }
+
+      .hidden-menu {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="viewer" id="viewer">
+      <img id="viewerImage" class="viewer-image" alt="预览图" />
+      <div class="viewer-empty" id="viewerEmpty">
+        <div>
+          <strong>上传或拍摄头像</strong>
+          <div>整页只保留一个主显示区。<br>先确认头像，再用年龄线或十二生肖生成效果。</div>
+        </div>
+      </div>
+
+      <div class="viewer-top">
+        <div class="floating">
+          <div class="scene-title" id="sceneTitle">原图</div>
+          <div class="scene-desc" id="sceneDesc">等待上传头像（后端地址固定配置版）</div>
+        </div>
+        <div class="mini-tag" id="modeTag">未开始</div>
+      </div>
+
+      <div class="status-inline" id="statusInline">
+        <span class="status-dot"></span>
+        <span id="statusText">准备就绪</span>
+      </div>
+
+      <div class="viewer-bottom">
+        <div class="hint-pill" id="hintPill">长按主图可临时查看原图</div>
+      </div>
+
+      <div class="loading-mask" id="loadingMask">
+        <div class="spinner"></div>
+        <div id="loadingText">正在处理中...</div>
+      </div>
+    </main>
+  </div>
+
+  <div class="backdrop" id="panelBackdrop"></div>
+
+  <section class="control-sheet" id="controlSheet">
+    <div class="sheet-card">
+      <div class="sheet-top">
+        <div>
+          <div class="sheet-title" id="sheetTitle">年龄线</div>
+          <div class="sheet-desc" id="sheetDesc">拖动后松手生成当前年龄效果</div>
+        </div>
+        <button class="close-btn" id="closeSheetBtn" aria-label="关闭">×</button>
+      </div>
+
+      <div class="age-panel" id="agePanel">
+        <div class="age-head">
+          <div class="age-current"><span id="ageCurrent">20</span> 岁</div>
+          <div class="age-tip">拖动年龄线，松手后自动生成</div>
+        </div>
+        <div class="range-wrap">
+          <input type="range" id="ageRange" min="1" max="80" step="1" value="20" />
+          <div class="age-marks">
+            <span>1</span><span>10</span><span>20</span><span>40</span><span>60</span><span>80</span>
+          </div>
+        </div>
+        <div class="age-actions">
+          <button class="ghost-btn" id="showOriginalBtn">查看原图</button>
+          <button class="primary-btn" id="playAgeBtn">年龄动画</button>
+        </div>
+      </div>
+
+      <div class="zodiac-panel" id="zodiacPanel">
+        <button class="select-trigger" id="zodiacTrigger">
+          <div>
+            <div id="zodiacChosen">请选择十二生肖</div>
+            <div class="select-sub">点击展开隐藏下拉选项</div>
+          </div>
+          <span id="zodiacArrow">▾</span>
+        </button>
+        <div class="hidden-menu" id="zodiacMenu"></div>
+        <div class="chooser-actions">
+          <button class="soft-btn" id="zodiacOriginalBtn">恢复原图</button>
+          <button class="ghost-btn" id="zodiacRetryBtn">重新生成当前生肖</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="bottom-bar">
+    <div class="bottom-grid">
+      <button class="bottom-btn" id="uploadBtn">
+        <span class="icon">🖼️</span>
+        <span>上传头像</span>
+      </button>
+      <button class="bottom-btn" id="cameraBtn">
+        <span class="icon">📷</span>
+        <span>拍摄头像</span>
+      </button>
+      <button class="bottom-btn" id="ageBtn">
+        <span class="icon">🎚️</span>
+        <span>年龄线</span>
+      </button>
+      <button class="bottom-btn" id="zodiacBtn">
+        <span class="icon">🐲</span>
+        <span>十二生肖</span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="modal" id="confirmModal">
+    <div class="modal-card">
+      <div class="modal-title" id="confirmTitle">确认头像</div>
+      <div class="modal-desc" id="confirmDesc">请先预览这张头像，确认后再进入主显示区。</div>
+      <img id="confirmPreview" class="confirm-preview" alt="确认预览" />
+      <div class="modal-actions">
+        <button class="ghost-btn" id="cancelConfirmBtn">重新选择</button>
+        <button class="primary-btn" id="applyConfirmBtn">确认使用</button>
+      </div>
+    </div>
+  </div>
+
+  <input id="uploadInput" class="hidden-input" type="file" accept="image/*" />
+  <input id="cameraInput" class="hidden-input" type="file" accept="image/*" capture="user" />
+
+  <script>
+    const CONFIG = {
+      storageKey: 'ai_avatar_mobile_ui_v1',
+      apiBaseKey: 'ai_avatar_api_base_v1',
+      fixedApiBase: 'https://dnqcx5z3hkw8a.cfc-execute.gz.baidubce.com/touxiang2026418',
+      ageAnimationSequence: [1, 10, 20, 40, 60, 80],
+      size: '1024x1024',
+      negativePrompt: '模糊，低清晰度，低分辨率，双脸，多人，额外肢体，文字，水印，畸形五官，过曝，过度磨皮',
+      zodiacList: [
+        { key: 'rat', label: '鼠' },
+        { key: 'ox', label: '牛' },
+        { key: 'tiger', label: '虎' },
+        { key: 'rabbit', label: '兔' },
+        { key: 'dragon', label: '龙' },
+        { key: 'snake', label: '蛇' },
+        { key: 'horse', label: '马' },
+        { key: 'sheep', label: '羊' },
+        { key: 'monkey', label: '猴' },
+        { key: 'rooster', label: '鸡' },
+        { key: 'dog', label: '狗' },
+        { key: 'pig', label: '猪' }
+      ],
+      zodiacLabels: {
+        rat: '鼠', ox: '牛', tiger: '虎', rabbit: '兔', dragon: '龙', snake: '蛇', horse: '马', sheep: '羊', monkey: '猴', rooster: '鸡', dog: '狗', pig: '猪'
+      }
+    };
+
+    const state = {
+      apiBase: (CONFIG.fixedApiBase || '').trim().replace(/\/$/, ''),
+      originalFile: null,
+      originalDataUrl: '',
+      uploadBase64: '',
+      currentImageUrl: '',
+      currentLabel: '原图',
+      currentDesc: '等待上传头像',
+      currentMode: 'idle',
+      activePanel: '',
+      selectedAge: 20,
+      selectedZodiac: '',
+      ageCache: new Map(),
+      zodiacCache: new Map(),
+      isLoading: false,
+      isAgeAnimating: false,
+      animationTimer: null,
+      confirmCandidate: null,
+      longPressTempOriginal: false,
+      lastRenderedResult: ''
+    };
+
+    const els = {
+      viewer: document.getElementById('viewer'),
+      viewerImage: document.getElementById('viewerImage'),
+      viewerEmpty: document.getElementById('viewerEmpty'),
+      sceneTitle: document.getElementById('sceneTitle'),
+      sceneDesc: document.getElementById('sceneDesc'),
+      modeTag: document.getElementById('modeTag'),
+      hintPill: document.getElementById('hintPill'),
+      statusInline: document.getElementById('statusInline'),
+      statusText: document.getElementById('statusText'),
+      loadingMask: document.getElementById('loadingMask'),
+      loadingText: document.getElementById('loadingText'),
+      controlSheet: document.getElementById('controlSheet'),
+      panelBackdrop: document.getElementById('panelBackdrop'),
+      closeSheetBtn: document.getElementById('closeSheetBtn'),
+      sheetTitle: document.getElementById('sheetTitle'),
+      sheetDesc: document.getElementById('sheetDesc'),
+      agePanel: document.getElementById('agePanel'),
+      zodiacPanel: document.getElementById('zodiacPanel'),
+      ageRange: document.getElementById('ageRange'),
+      ageCurrent: document.getElementById('ageCurrent'),
+      showOriginalBtn: document.getElementById('showOriginalBtn'),
+      playAgeBtn: document.getElementById('playAgeBtn'),
+      zodiacTrigger: document.getElementById('zodiacTrigger'),
+      zodiacChosen: document.getElementById('zodiacChosen'),
+      zodiacArrow: document.getElementById('zodiacArrow'),
+      zodiacMenu: document.getElementById('zodiacMenu'),
+      zodiacOriginalBtn: document.getElementById('zodiacOriginalBtn'),
+      zodiacRetryBtn: document.getElementById('zodiacRetryBtn'),
+      uploadBtn: document.getElementById('uploadBtn'),
+      cameraBtn: document.getElementById('cameraBtn'),
+      ageBtn: document.getElementById('ageBtn'),
+      zodiacBtn: document.getElementById('zodiacBtn'),
+      uploadInput: document.getElementById('uploadInput'),
+      cameraInput: document.getElementById('cameraInput'),
+      confirmModal: document.getElementById('confirmModal'),
+      confirmTitle: document.getElementById('confirmTitle'),
+      confirmDesc: document.getElementById('confirmDesc'),
+      confirmPreview: document.getElementById('confirmPreview'),
+      cancelConfirmBtn: document.getElementById('cancelConfirmBtn'),
+      applyConfirmBtn: document.getElementById('applyConfirmBtn')
+    };
+
+    let statusTimer = null;
+
+    init();
+
+    function init() {
+      renderZodiacMenu();
+      bindEvents();
+      updateAgeLabel();
+      renderScene();
+      setStatus('先上传或拍摄头像，再开始生成效果。当前版本不会再弹窗输入后端地址。');
+    }
+
+    function bindEvents() {
+      els.uploadBtn.addEventListener('click', () => els.uploadInput.click());
+      els.cameraBtn.addEventListener('click', () => els.cameraInput.click());
+      els.uploadInput.addEventListener('change', (e) => handlePickedFile(e, 'upload'));
+      els.cameraInput.addEventListener('change', (e) => handlePickedFile(e, 'camera'));
+
+      els.ageBtn.addEventListener('click', () => togglePanel('age'));
+      els.zodiacBtn.addEventListener('click', () => togglePanel('zodiac'));
+      els.closeSheetBtn.addEventListener('click', closePanels);
+      els.panelBackdrop.addEventListener('click', closePanels);
+
+      els.ageRange.addEventListener('input', updateAgeLabel);
+      els.ageRange.addEventListener('change', () => generateAge(Number(els.ageRange.value)));
+      els.showOriginalBtn.addEventListener('click', () => showOriginal(true));
+      els.playAgeBtn.addEventListener('click', playAgeAnimation);
+
+      els.zodiacTrigger.addEventListener('click', toggleZodiacMenu);
+      els.zodiacOriginalBtn.addEventListener('click', () => showOriginal(true));
+      els.zodiacRetryBtn.addEventListener('click', retryCurrentZodiac);
+
+      els.cancelConfirmBtn.addEventListener('click', cancelConfirm);
+      els.applyConfirmBtn.addEventListener('click', applyConfirmedImage);
+
+      bindPressPreview();
+      window.addEventListener('beforeunload', stopAgeAnimation);
+    }
+
+    function bindPressPreview() {
+      const start = () => {
+        if (!state.originalDataUrl || !state.lastRenderedResult || state.currentMode === 'original') return;
+        state.longPressTempOriginal = true;
+        renderImage(state.originalDataUrl, '原图', '正在临时查看原图');
+      };
+      const end = () => {
+        if (!state.longPressTempOriginal) return;
+        state.longPressTempOriginal = false;
+        renderImage(state.currentImageUrl || state.lastRenderedResult || state.originalDataUrl, state.currentLabel, state.currentDesc);
+      };
+      ['touchstart', 'mousedown'].forEach(name => els.viewer.addEventListener(name, start));
+      ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(name => els.viewer.addEventListener(name, end));
+    }
+
+    function renderZodiacMenu() {
+      els.zodiacMenu.innerHTML = '';
+      CONFIG.zodiacList.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'option-chip';
+        btn.textContent = item.label;
+        btn.dataset.key = item.key;
+        btn.addEventListener('click', () => chooseZodiac(item.key));
+        els.zodiacMenu.appendChild(btn);
+      });
+    }
+
+    async function handlePickedFile(event, source) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      const previewUrl = URL.createObjectURL(file);
+      state.confirmCandidate = { file, previewUrl, source };
+      els.confirmPreview.src = previewUrl;
+      els.confirmTitle.textContent = source === 'camera' ? '确认拍摄头像' : '确认上传头像';
+      els.confirmDesc.textContent = source === 'camera'
+        ? '请先预览拍摄结果，确认后再作为主显示区头像。'
+        : '请先预览上传结果，确认后再作为主显示区头像。';
+      els.confirmModal.classList.add('show');
+    }
+
+    function cancelConfirm() {
+      if (state.confirmCandidate && state.confirmCandidate.previewUrl) {
+        URL.revokeObjectURL(state.confirmCandidate.previewUrl);
+      }
+      state.confirmCandidate = null;
+      els.confirmModal.classList.remove('show');
+    }
+
+    async function applyConfirmedImage() {
+      if (!state.confirmCandidate) return;
+      const { file, previewUrl, source } = state.confirmCandidate;
+      els.confirmModal.classList.remove('show');
+      setLoading(true, source === 'camera' ? '正在确认拍摄头像...' : '正在确认上传头像...');
+
+      try {
+        const { dataUrl, base64 } = await prepareUploadPayload(file);
+        resetCaches();
+        state.originalFile = file;
+        state.originalDataUrl = dataUrl;
+        state.uploadBase64 = base64;
+        state.currentImageUrl = dataUrl;
+        state.lastRenderedResult = '';
+        state.currentLabel = '原图';
+        state.currentDesc = source === 'camera' ? '已确认拍摄头像，可继续使用年龄线或十二生肖。' : '已确认上传头像，可继续使用年龄线或十二生肖。';
+        state.currentMode = 'original';
+        state.selectedZodiac = '';
+        state.selectedAge = Number(els.ageRange.value || 20);
+        updateAgeLabel();
+        updateZodiacSelection();
+        renderScene();
+        closePanels();
+        setStatus(source === 'camera' ? '拍摄头像已确认。' : '上传头像已确认。');
+      } catch (error) {
+        console.error(error);
+        setStatus(`头像处理失败：${error.message || error}`);
+      } finally {
+        setLoading(false);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        state.confirmCandidate = null;
+      }
+    }
+
+    async function prepareUploadPayload(file) {
+      const originalDataUrl = await fileToDataURL(file);
+      const img = await dataUrlToImage(originalDataUrl);
+      const longestSide = Math.max(img.width, img.height);
+      const shouldKeepOriginal = file.size <= 4.5 * 1024 * 1024 && longestSide <= 2048;
+
+      if (shouldKeepOriginal) {
+        return { dataUrl: originalDataUrl, base64: originalDataUrl.split(',')[1] || '' };
+      }
+
+      const targetLongestSide = longestSide > 3200 ? 2048 : 1792;
+      const compressedDataUrl = await compressImage(img, targetLongestSide, 0.92);
+      return { dataUrl: compressedDataUrl, base64: compressedDataUrl.split(',')[1] || '' };
+    }
+
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function dataUrlToImage(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('图片解析失败'));
+        img.src = dataUrl;
+      });
+    }
+
+    function compressImage(img, targetLongestSide, quality) {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      const longest = Math.max(width, height);
+      if (longest > targetLongestSide) {
+        const ratio = targetLongestSide / longest;
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL('image/jpeg', quality);
+    }
+
+    function togglePanel(type) {
+      if (!ensureReadyForEffects()) return;
+      if (state.activePanel === type) {
+        closePanels();
+        return;
+      }
+      state.activePanel = type;
+      els.controlSheet.classList.add('show');
+      els.panelBackdrop.classList.add('show');
+      els.agePanel.classList.toggle('show', type === 'age');
+      els.zodiacPanel.classList.toggle('show', type === 'zodiac');
+      els.sheetTitle.textContent = type === 'age' ? '年龄线' : '十二生肖';
+      els.sheetDesc.textContent = type === 'age' ? '拖动后松手生成当前年龄效果' : '点击下拉按钮，再选择一个生肖生成头像';
+      els.ageBtn.classList.toggle('active', type === 'age');
+      els.zodiacBtn.classList.toggle('active', type === 'zodiac');
+      if (type === 'age') {
+        els.ageCurrent.textContent = String(state.selectedAge);
+      }
+    }
+
+    function closePanels() {
+      state.activePanel = '';
+      els.controlSheet.classList.remove('show');
+      els.panelBackdrop.classList.remove('show');
+      els.agePanel.classList.remove('show');
+      els.zodiacPanel.classList.remove('show');
+      els.zodiacMenu.classList.remove('show');
+      els.zodiacArrow.textContent = '▾';
+      els.ageBtn.classList.remove('active');
+      els.zodiacBtn.classList.remove('active');
+    }
+
+    function toggleZodiacMenu() {
+      const open = els.zodiacMenu.classList.toggle('show');
+      els.zodiacArrow.textContent = open ? '▴' : '▾';
+    }
+
+    function updateAgeLabel() {
+      state.selectedAge = Number(els.ageRange.value || 20);
+      els.ageCurrent.textContent = String(state.selectedAge);
+    }
+
+    async function generateAge(age) {
+      if (!ensureReadyForEffects()) return;
+      stopAgeAnimation();
+      state.selectedAge = age;
+      state.currentMode = 'age';
+      const cacheKey = String(age);
+      if (state.ageCache.has(cacheKey)) {
+        const url = state.ageCache.get(cacheKey);
+        state.currentImageUrl = url;
+        state.lastRenderedResult = url;
+        state.currentLabel = `${age}岁`;
+        state.currentDesc = `当前显示缓存结果：${age}岁`;
+        renderScene();
+        setStatus(`已切换到缓存年龄效果：${age}岁。`);
+        return;
+      }
+
+      setLoading(true, `正在生成 ${age} 岁效果...`);
+      try {
+        const url = await callGenerateApi({ mode: 'age', value: age });
+        state.ageCache.set(cacheKey, url);
+        state.currentImageUrl = url;
+        state.lastRenderedResult = url;
+        state.currentLabel = `${age}岁`;
+        state.currentDesc = `年龄线效果：${age}岁`;
+        renderScene();
+        setStatus(`${age} 岁效果已生成。`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`生成失败：${error.message || error}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function chooseZodiac(key) {
+      if (!ensureReadyForEffects()) return;
+      stopAgeAnimation();
+      state.selectedZodiac = key;
+      updateZodiacSelection();
+      els.zodiacMenu.classList.remove('show');
+      els.zodiacArrow.textContent = '▾';
+
+      if (state.zodiacCache.has(key)) {
+        const url = state.zodiacCache.get(key);
+        state.currentMode = 'zodiac';
+        state.currentImageUrl = url;
+        state.lastRenderedResult = url;
+        state.currentLabel = CONFIG.zodiacLabels[key] || key;
+        state.currentDesc = `当前显示缓存生肖效果：${CONFIG.zodiacLabels[key] || key}`;
+        renderScene();
+        setStatus(`已切换到缓存生肖：${CONFIG.zodiacLabels[key] || key}。`);
+        return;
+      }
+
+      setLoading(true, `正在生成 ${CONFIG.zodiacLabels[key] || key} 头像...`);
+      try {
+        const url = await callGenerateApi({ mode: 'animal', value: key, label: CONFIG.zodiacLabels[key] || key });
+        state.zodiacCache.set(key, url);
+        state.currentMode = 'zodiac';
+        state.currentImageUrl = url;
+        state.lastRenderedResult = url;
+        state.currentLabel = CONFIG.zodiacLabels[key] || key;
+        state.currentDesc = `生肖头像：${CONFIG.zodiacLabels[key] || key}`;
+        renderScene();
+        setStatus(`${CONFIG.zodiacLabels[key] || key} 头像已生成。`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`生成失败：${error.message || error}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function retryCurrentZodiac() {
+      if (!state.selectedZodiac) {
+        setStatus('请先在下拉菜单中选择一个生肖。');
+        return;
+      }
+      state.zodiacCache.delete(state.selectedZodiac);
+      await chooseZodiac(state.selectedZodiac);
+    }
+
+    async function playAgeAnimation() {
+      if (!ensureReadyForEffects()) return;
+      stopAgeAnimation();
+      state.currentMode = 'age';
+      state.isAgeAnimating = true;
+      setStatus('年龄动画开始。首次播放会边生成边播放。');
+      await runAgeAnimation(0);
+    }
+
+    async function runAgeAnimation(index) {
+      if (!state.isAgeAnimating) return;
+      if (index >= CONFIG.ageAnimationSequence.length) {
+        state.animationTimer = setTimeout(() => runAgeAnimation(0), 1800);
+        return;
+      }
+      const age = CONFIG.ageAnimationSequence[index];
+      els.ageRange.value = String(age);
+      updateAgeLabel();
+      await generateAge(age);
+      if (!state.isAgeAnimating) return;
+      state.animationTimer = setTimeout(() => runAgeAnimation(index + 1), 1300);
+    }
+
+    function stopAgeAnimation() {
+      state.isAgeAnimating = false;
+      clearTimeout(state.animationTimer);
+      state.animationTimer = null;
+    }
+
+    function showOriginal(showStatus) {
+      if (!state.originalDataUrl) return;
+      stopAgeAnimation();
+      state.currentMode = 'original';
+      state.currentImageUrl = state.originalDataUrl;
+      state.currentLabel = '原图';
+      state.currentDesc = '当前显示上传或拍摄确认后的原图';
+      renderScene();
+      if (showStatus) setStatus('已切换回原图。');
+    }
+
+    function ensureReadyForEffects() {
+      if (!state.uploadBase64) {
+        setStatus('请先上传或拍摄头像，并确认使用。');
+        return false;
+      }
+      return true;
+    }
+
+    function updateZodiacSelection() {
+      els.zodiacChosen.textContent = state.selectedZodiac ? `当前生肖：${CONFIG.zodiacLabels[state.selectedZodiac]}` : '请选择十二生肖';
+      Array.from(els.zodiacMenu.children).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.key === state.selectedZodiac);
+      });
+    }
+
+    async function callGenerateApi({ mode, value, label }) {
+      const apiBase = await ensureApiBase();
+      const endpoint = `${apiBase.replace(/\/$/, '')}/generate`;
+      const payload = {
+        imageBase64: state.uploadBase64,
+        mode,
+        value,
+        label: label || '',
+        size: CONFIG.size,
+        negativePrompt: CONFIG.negativePrompt,
+        customPrompt: ''
+      };
+
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(payload)
+        });
+      } catch (error) {
+        const isLocalFile = location.protocol === 'file:';
+        const hint = isLocalFile
+          ? '当前页面是通过 file:// 打开的。请优先改用本地 HTTP 服务打开，或确认函数触发器已允许跨域返回 Access-Control-Allow-Origin。'
+          : '请检查函数地址、网络连通性，以及函数触发器的跨域响应头配置。';
+        throw new Error(`请求后端失败：${error.message || error}。${hint}`);
+      }
+
+      const text = await response.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`后端返回非 JSON：${text.slice(0, 80)}`);
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || `接口请求失败（${response.status}）`);
+      }
+      if (!data.imageUrl) {
+        throw new Error('后端未返回 imageUrl');
+      }
+      return data.imageUrl;
+    }
+
+    async function ensureApiBase() {
+      if (state.apiBase) return state.apiBase;
+      throw new Error('程序中尚未填写固定后端地址，请修改 CONFIG.fixedApiBase');
+    }
+
+    function resetCaches() {
+      stopAgeAnimation();
+      state.ageCache.clear();
+      state.zodiacCache.clear();
+    }
+
+    function renderImage(imageUrl, label, desc) {
+      const hasImage = !!imageUrl;
+      els.viewerImage.style.display = hasImage ? 'block' : 'none';
+      els.viewerEmpty.style.display = hasImage ? 'none' : 'flex';
+      if (hasImage) {
+        els.viewerImage.src = imageUrl;
+      } else {
+        els.viewerImage.removeAttribute('src');
+      }
+
+      els.sceneTitle.textContent = label;
+      els.sceneDesc.textContent = desc;
+      els.modeTag.textContent = modeText(state.currentMode);
+      els.hintPill.textContent = hasImage
+        ? (state.currentMode === 'original' ? '可点击“年龄线”或“十二生肖”开始生成' : '长按主图可临时查看原图')
+        : '上传头像后，四个按钮都围绕这个主显示区工作';
+    }
+
+    function renderScene() {
+      renderImage(state.currentImageUrl, state.currentLabel, state.currentDesc);
+    }
+
+    function modeText(mode) {
+      if (mode === 'age') return '年龄效果';
+      if (mode === 'zodiac') return '生肖效果';
+      if (mode === 'original') return '原图已确认';
+      return '未开始';
+    }
+
+    function setLoading(show, text) {
+      state.isLoading = show;
+      els.loadingMask.classList.toggle('show', show);
+      if (text) els.loadingText.textContent = text;
+    }
+
+    function setStatus(text) {
+      els.statusText.textContent = text;
+      els.statusInline.classList.add('show');
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => {
+        els.statusInline.classList.remove('show');
+      }, 2200);
+    }
+  </script>
+</body>
+</html>
