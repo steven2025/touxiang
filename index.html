@@ -2,10 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AI人格动物相机</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext y=%2250%22 font-size=%2248%22%3E%F0%9F%90%B2%3C/text%3E%3C/svg%3E" />
   <style>
+
     :root {
       --bg: #eef3ff;
       --card: #ffffff;
@@ -17,7 +18,10 @@
       --dark: rgba(17,24,39,0.68);
       --shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
       --radius: 24px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
     }
 
     * {
@@ -33,23 +37,42 @@
       background: linear-gradient(180deg, #f7f9ff 0%, #edf3ff 100%);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     body {
-      overscroll-behavior: none;
+      overscroll-behavior-y: contain;
+      overflow-x: hidden;
+    }
+
+    img {
+      max-width: 100%;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
     }
 
     .app {
       width: min(100%, 560px);
       min-height: 100vh;
+      min-height: 100dvh;
       margin: 0 auto;
-      padding: 12px 12px calc(108px + var(--safe-bottom));
+      padding: calc(12px + var(--safe-top)) max(12px, var(--safe-left)) calc(108px + var(--safe-bottom)) max(12px, var(--safe-right));
       position: relative;
     }
 
     .viewer {
-      position: relative;
-      min-height: calc(100vh - 132px - var(--safe-bottom));
+      min-height: calc(100vh - 132px - var(--safe-bottom) - var(--safe-top));
+      min-height: calc(100dvh - 132px - var(--safe-bottom) - var(--safe-top));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px;
       border-radius: 28px;
       overflow: hidden;
       background:
@@ -60,8 +83,68 @@
       border: 1px solid rgba(255,255,255,0.75);
     }
 
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .viewer-head-copy {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 2px 0;
+    }
+
+    .scene-title {
+      color: var(--text);
+      font-size: clamp(20px, 4.8vw, 32px);
+      font-weight: 900;
+      line-height: 1.16;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .scene-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: #5a6375;
+      word-break: break-word;
+    }
+
+    .mini-tag {
+      flex-shrink: 0;
+      max-width: 42%;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+      white-space: nowrap;
+      background: rgba(17,24,39,0.08);
+      color: #374151;
+      border: 1px solid rgba(148,163,184,0.22);
+      box-shadow: 0 10px 24px rgba(15,23,42,0.06);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewer-stage {
+      position: relative;
+      flex: 1;
+      min-height: 320px;
+      border-radius: 24px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 30%),
+        linear-gradient(180deg, #f8fbff 0%, #edf3ff 100%);
+      border: 1px solid rgba(255,255,255,0.82);
+      isolation: isolate;
+    }
+
     .viewer-image,
-    .viewer-empty {
+    .viewer-empty,
+    .loading-mask {
       position: absolute;
       inset: 0;
     }
@@ -72,6 +155,9 @@
       display: none;
       object-fit: cover;
       background: #f3f4f6;
+      user-select: none;
+      -webkit-user-drag: none;
+      touch-action: none;
     }
 
     .viewer-empty {
@@ -82,6 +168,9 @@
       text-align: center;
       color: var(--muted);
       line-height: 1.7;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.42) 100%);
     }
 
     .viewer-empty strong {
@@ -91,97 +180,52 @@
       margin-bottom: 10px;
     }
 
-    .viewer-top {
-      position: absolute;
-      inset: 0 0 auto 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 14px;
-      z-index: 4;
-      pointer-events: none;
-    }
-
-    .floating,
-    .mini-tag,
-    .hint-pill {
-      backdrop-filter: blur(12px);
-      background: rgba(17,24,39,0.40);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.16);
-      box-shadow: 0 10px 24px rgba(15,23,42,0.18);
-    }
-
-    .floating {
-      border-radius: 999px;
-      padding: 10px 14px;
-      max-width: min(72%, 280px);
-      pointer-events: auto;
-    }
-
-    .scene-title {
-      font-size: 18px;
-      font-weight: 800;
-      line-height: 1.2;
-      margin-bottom: 4px;
-    }
-
-    .scene-desc {
-      font-size: 12px;
-      opacity: 0.95;
-      line-height: 1.45;
-    }
-
-    .mini-tag {
-      border-radius: 999px;
-      padding: 10px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-      pointer-events: auto;
-    }
-
-    .viewer-bottom {
-      position: absolute;
-      inset: auto 0 14px 0;
+    .viewer-foot {
       display: flex;
       justify-content: center;
-      z-index: 4;
-      padding: 0 14px;
-      pointer-events: none;
+      padding: 2px 4px 0;
     }
 
     .hint-pill {
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-size: 12px;
-      line-height: 1.4;
-      text-align: center;
+      width: 100%;
       max-width: 100%;
-      pointer-events: auto;
+      border-radius: 16px;
+      padding: 11px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      color: #5b6476;
+      background: rgba(17,24,39,0.06);
+      border: 1px solid rgba(148,163,184,0.18);
+      box-shadow: none;
     }
 
     .status-inline {
-      position: absolute;
-      left: 14px;
-      right: 14px;
-      bottom: 70px;
-      z-index: 5;
-      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: calc(98px + var(--safe-bottom));
+      z-index: 45;
+      width: min(calc(100% - 24px), 520px);
+      display: flex;
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
       border-radius: 16px;
       backdrop-filter: blur(12px);
-      background: rgba(17,24,39,0.58);
+      background: rgba(17,24,39,0.78);
       color: #fff;
       font-size: 13px;
       line-height: 1.5;
+      box-shadow: 0 14px 28px rgba(15,23,42,0.24);
+      opacity: 0;
+      transform: translateX(-50%) translateY(10px);
+      pointer-events: none;
+      transition: opacity .22s ease, transform .22s ease;
     }
 
     .status-inline.show {
-      display: flex;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
     .status-dot {
@@ -193,8 +237,6 @@
     }
 
     .loading-mask {
-      position: absolute;
-      inset: 0;
       z-index: 8;
       display: none;
       align-items: center;
@@ -244,7 +286,7 @@
     .sheet-card {
       border-radius: 24px;
       padding: 14px;
-      background: rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.94);
       box-shadow: 0 18px 40px rgba(15,23,42,0.14);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.75);
@@ -271,14 +313,15 @@
     }
 
     .close-btn {
-      width: 34px;
-      height: 34px;
+      width: 40px;
+      height: 40px;
       border: none;
       border-radius: 999px;
       background: #eef2ff;
       color: #334155;
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .age-panel,
@@ -366,6 +409,7 @@
       border: none;
       cursor: pointer;
       transition: transform .14s ease, opacity .14s ease, background .14s ease;
+      touch-action: manipulation;
     }
 
     .ghost-btn:active,
@@ -380,7 +424,7 @@
     .ghost-btn,
     .primary-btn,
     .soft-btn {
-      min-height: 44px;
+      min-height: 46px;
       padding: 12px 16px;
       border-radius: 16px;
       font-size: 14px;
@@ -419,6 +463,7 @@
       gap: 12px;
       font-size: 14px;
       font-weight: 700;
+      text-align: left;
     }
 
     .select-sub {
@@ -477,7 +522,7 @@
       transform: translateX(-50%);
       width: min(100%, 560px);
       z-index: 30;
-      padding: 10px 12px calc(12px + var(--safe-bottom));
+      padding: 10px max(12px, var(--safe-left)) calc(12px + var(--safe-bottom)) max(12px, var(--safe-right));
       background: linear-gradient(180deg, rgba(247,249,255,0) 0%, rgba(247,249,255,0.75) 20%, rgba(247,249,255,0.98) 42%, rgba(247,249,255,1) 100%);
     }
 
@@ -487,7 +532,7 @@
       gap: 8px;
       padding: 8px;
       border-radius: 24px;
-      background: rgba(255,255,255,0.86);
+      background: rgba(255,255,255,0.88);
       border: 1px solid rgba(255,255,255,0.78);
       box-shadow: 0 18px 45px rgba(15,23,42,0.10);
       backdrop-filter: blur(16px);
@@ -526,7 +571,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 18px;
+      padding: max(18px, var(--safe-top)) max(18px, var(--safe-right)) max(18px, calc(var(--safe-bottom) + 18px)) max(18px, var(--safe-left));
       background: rgba(15,23,42,0.42);
       backdrop-filter: blur(8px);
     }
@@ -538,11 +583,13 @@
     .modal-card {
       width: min(100%, 420px);
       max-height: 86vh;
+      max-height: 86dvh;
       overflow: auto;
       background: #fff;
       border-radius: 24px;
       padding: 14px;
       box-shadow: 0 22px 48px rgba(15,23,42,0.25);
+      -webkit-overflow-scrolling: touch;
     }
 
     .modal-title {
@@ -576,59 +623,97 @@
       display: none;
     }
 
-    @media (max-width: 380px) {
-      .app {
-        padding-left: 10px;
-        padding-right: 10px;
-      }
-
-      .scene-title {
-        font-size: 16px;
-      }
-
-      .bottom-btn {
-        min-height: 58px;
+    @media (max-width: 430px) {
+      .mini-tag {
+        max-width: 46%;
       }
 
       .hidden-menu {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
+
+    @media (max-width: 380px) {
+      .app {
+        padding-left: max(10px, var(--safe-left));
+        padding-right: max(10px, var(--safe-right));
+      }
+
+      .viewer {
+        padding: 12px;
+      }
+
+      .scene-title {
+        font-size: 18px;
+      }
+
+      .scene-desc {
+        font-size: 12px;
+      }
+
+      .bottom-btn {
+        min-height: 58px;
+      }
+
+      .bottom-grid {
+        gap: 6px;
+        padding: 7px;
+      }
+
+      .status-inline {
+        width: min(calc(100% - 20px), 520px);
+      }
+    }
+
+    @media (max-width: 340px) {
+      .hidden-menu {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .modal-actions,
+      .age-actions,
+      .chooser-actions {
+        flex-direction: column;
+      }
+    }
+
   </style>
 </head>
 <body>
   <div class="app">
     <main class="viewer" id="viewer">
-      <img id="viewerImage" class="viewer-image" alt="预览图" />
-      <div class="viewer-empty" id="viewerEmpty">
-        <div>
-          <strong>上传或拍摄头像</strong>
-          <div>整页只保留一个主显示区。<br>先确认头像，再用人格照片或动物头像生成效果。</div>
-        </div>
-      </div>
-
-      <div class="viewer-top">
-        <div class="floating">
+      <div class="viewer-header">
+        <div class="viewer-head-copy">
           <div class="scene-title" id="sceneTitle">原图</div>
           <div class="scene-desc" id="sceneDesc">等待上传头像（人格照片 / 动物头像版）</div>
         </div>
         <div class="mini-tag" id="modeTag">未开始</div>
       </div>
 
-      <div class="status-inline" id="statusInline">
-        <span class="status-dot"></span>
-        <span id="statusText">准备就绪</span>
+      <div class="viewer-stage" id="viewerStage">
+        <img id="viewerImage" class="viewer-image" alt="预览图" />
+        <div class="viewer-empty" id="viewerEmpty">
+          <div>
+            <strong>上传或拍摄头像</strong>
+            <div>整页只保留一个主显示区。<br>先确认头像，再用人格照片或动物头像生成效果。</div>
+          </div>
+        </div>
+
+        <div class="loading-mask" id="loadingMask">
+          <div class="spinner"></div>
+          <div id="loadingText">正在处理中...</div>
+        </div>
       </div>
 
-      <div class="viewer-bottom">
+      <div class="viewer-foot">
         <div class="hint-pill" id="hintPill">长按主图可临时查看原图</div>
       </div>
-
-      <div class="loading-mask" id="loadingMask">
-        <div class="spinner"></div>
-        <div id="loadingText">正在处理中...</div>
-      </div>
     </main>
+  </div>
+
+  <div class="status-inline" id="statusInline">
+    <span class="status-dot"></span>
+    <span id="statusText">准备就绪</span>
   </div>
 
   <div class="backdrop" id="panelBackdrop"></div>
@@ -638,7 +723,7 @@
       <div class="sheet-top">
         <div>
           <div class="sheet-title" id="sheetTitle">人格照片</div>
-          <div class="sheet-desc" id="sheetDesc">选择 MBTI 类型后，生成符合人格气质的年轻人写真</div>
+          <div class="sheet-desc" id="sheetDesc">选择 MBTI 类型后，生成符合人格气质的人格照片</div>
         </div>
         <button class="close-btn" id="closeSheetBtn" aria-label="关闭">×</button>
       </div>
@@ -797,6 +882,7 @@
 
     const els = {
       viewer: document.getElementById('viewer'),
+      viewerStage: document.getElementById('viewerStage'),
       viewerImage: document.getElementById('viewerImage'),
       viewerEmpty: document.getElementById('viewerEmpty'),
       sceneTitle: document.getElementById('sceneTitle'),
@@ -876,6 +962,7 @@
     }
 
     function bindPressPreview() {
+      const pressTarget = els.viewerStage || els.viewer;
       const start = () => {
         if (!state.originalDataUrl || !state.lastRenderedResult || state.currentMode === 'original') return;
         state.longPressTempOriginal = true;
@@ -886,8 +973,13 @@
         state.longPressTempOriginal = false;
         renderImage(state.currentImageUrl || state.lastRenderedResult || state.originalDataUrl, state.currentLabel, state.currentDesc);
       };
-      ['touchstart', 'mousedown'].forEach(name => els.viewer.addEventListener(name, start));
-      ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(name => els.viewer.addEventListener(name, end));
+      pressTarget.addEventListener('contextmenu', (event) => {
+        if (state.currentMode !== 'original' && state.lastRenderedResult) {
+          event.preventDefault();
+        }
+      });
+      ['touchstart', 'mousedown'].forEach(name => pressTarget.addEventListener(name, start));
+      ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(name => pressTarget.addEventListener(name, end));
     }
 
     function renderPersonalityMenu() {
@@ -1031,7 +1123,7 @@
       els.zodiacPanel.classList.toggle('show', type === 'zodiac');
       els.sheetTitle.textContent = type === 'personality' ? '人格照片' : '动物头像';
       els.sheetDesc.textContent = type === 'personality'
-        ? '选择 MBTI 类型后，生成符合人格气质的年轻人写真'
+        ? '选择 MBTI 类型后，生成符合人格气质的人格照片'
         : '点击下拉按钮，再选择一个动物生成头像';
       els.personalityBtn.classList.toggle('active', type === 'personality');
       els.zodiacBtn.classList.toggle('active', type === 'zodiac');
@@ -1267,8 +1359,10 @@
       els.viewerEmpty.style.display = hasImage ? 'none' : 'flex';
       if (hasImage) {
         els.viewerImage.src = imageUrl;
+        els.viewerImage.alt = `${label}预览图`;
       } else {
         els.viewerImage.removeAttribute('src');
+        els.viewerImage.alt = '预览图';
       }
 
       els.sceneTitle.textContent = label;
