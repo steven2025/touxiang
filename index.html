@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI年龄生肖相机</title>
+  <title>AI人格动物相机</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext y=%2250%22 font-size=%2248%22%3E%F0%9F%90%B2%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
@@ -603,14 +603,14 @@
       <div class="viewer-empty" id="viewerEmpty">
         <div>
           <strong>上传或拍摄头像</strong>
-          <div>整页只保留一个主显示区。<br>先确认头像，再用年龄线或十二生肖生成效果。</div>
+          <div>整页只保留一个主显示区。<br>先确认头像，再用人格照片或动物头像生成效果。</div>
         </div>
       </div>
 
       <div class="viewer-top">
         <div class="floating">
           <div class="scene-title" id="sceneTitle">原图</div>
-          <div class="scene-desc" id="sceneDesc">等待上传头像（后端地址固定配置版）</div>
+          <div class="scene-desc" id="sceneDesc">等待上传头像（人格照片 / 动物头像版）</div>
         </div>
         <div class="mini-tag" id="modeTag">未开始</div>
       </div>
@@ -637,41 +637,38 @@
     <div class="sheet-card">
       <div class="sheet-top">
         <div>
-          <div class="sheet-title" id="sheetTitle">年龄线</div>
-          <div class="sheet-desc" id="sheetDesc">拖动后松手生成当前年龄效果</div>
+          <div class="sheet-title" id="sheetTitle">人格照片</div>
+          <div class="sheet-desc" id="sheetDesc">选择 MBTI 类型后，生成符合人格气质的年轻人写真</div>
         </div>
         <button class="close-btn" id="closeSheetBtn" aria-label="关闭">×</button>
       </div>
 
-      <div class="age-panel" id="agePanel">
-        <div class="age-head">
-          <div class="age-current"><span id="ageCurrent">20</span> 岁</div>
-          <div class="age-tip">拖动年龄线，松手后自动生成</div>
-        </div>
-        <div class="range-wrap">
-          <input type="range" id="ageRange" min="1" max="80" step="1" value="20" />
-          <div class="age-marks">
-            <span>1</span><span>10</span><span>20</span><span>40</span><span>60</span><span>80</span>
+      <div class="age-panel" id="personalityPanel">
+        <button class="select-trigger" id="personalityTrigger">
+          <div>
+            <div id="personalityChosen">我的人格类型</div>
+            <div class="select-sub">点击展开 MBTI 选项</div>
           </div>
-        </div>
-        <div class="age-actions">
-          <button class="ghost-btn" id="showOriginalBtn">查看原图</button>
-          <button class="primary-btn" id="playAgeBtn">年龄动画</button>
+          <span id="personalityArrow">▾</span>
+        </button>
+        <div class="hidden-menu" id="personalityMenu"></div>
+        <div class="chooser-actions">
+          <button class="ghost-btn" id="personalityGenerateBtn">生成人格照片</button>
         </div>
       </div>
 
       <div class="zodiac-panel" id="zodiacPanel">
         <button class="select-trigger" id="zodiacTrigger">
           <div>
-            <div id="zodiacChosen">请选择十二生肖</div>
-            <div class="select-sub">点击展开隐藏下拉选项</div>
+            <div id="zodiacChosen">请选择动物头像</div>
+            <div class="select-sub">点击展开动物选项</div>
           </div>
           <span id="zodiacArrow">▾</span>
         </button>
         <div class="hidden-menu" id="zodiacMenu"></div>
         <div class="chooser-actions">
           <button class="soft-btn" id="zodiacOriginalBtn">恢复原图</button>
-          <button class="ghost-btn" id="zodiacRetryBtn">重新生成当前生肖</button>
+          <button class="ghost-btn" id="zodiacRetryBtn">重新生成当前动物</button>
         </div>
       </div>
     </div>
@@ -687,13 +684,13 @@
         <span class="icon">📷</span>
         <span>拍摄头像</span>
       </button>
-      <button class="bottom-btn" id="ageBtn">
-        <span class="icon">🎚️</span>
-        <span>年龄线</span>
+      <button class="bottom-btn" id="personalityBtn">
+        <span class="icon">🧠</span>
+        <span>人格照片</span>
       </button>
       <button class="bottom-btn" id="zodiacBtn">
         <span class="icon">🐲</span>
-        <span>十二生肖</span>
+        <span>动物头像</span>
       </button>
     </div>
   </nav>
@@ -713,14 +710,49 @@
   <input id="uploadInput" class="hidden-input" type="file" accept="image/*" />
   <input id="cameraInput" class="hidden-input" type="file" accept="image/*" capture="user" />
 
+  
   <script>
     const CONFIG = {
       storageKey: 'ai_avatar_mobile_ui_v1',
       apiBaseKey: 'ai_avatar_api_base_v1',
       fixedApiBase: 'https://3sba6rn5c8vwr.cfc-execute.gz.baidubce.com/touxiang2026418-1',
-      ageAnimationSequence: [1, 10, 20, 40, 60, 80],
       size: '1024x1024',
-      negativePrompt: '模糊，低清晰度，低分辨率，双脸，多人，额外肢体，文字，水印，畸形五官，过曝，过度磨皮',
+      zodiacNegativePrompt: '模糊，低清晰度，低分辨率，双脸，多人，额外肢体，文字，水印，畸形五官，过曝，过度磨皮',
+      personalityNegativePrompt: '夸张变脸，失去人物熟悉感，面部不像本人，低幼卡通，廉价特效，过度浓妆，网红脸，夸张瘦脸，大眼，证件照感，老气，土气，俗气，过曝，脏污背景，水印，文字，畸形五官，多人',
+      personalityList: [
+        'ISTJ', 'ISFJ', 'INFJ', 'INTJ',
+        'ISTP', 'ISFP', 'INFP', 'INTP',
+        'ESTP', 'ESFP', 'ENFP', 'ENTP',
+        'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ'
+      ],
+      personalityPoolMap: {
+        ISTJ: 'campus_clean',
+        ESFJ: 'campus_clean',
+        ISFJ: 'gentle_healing',
+        ENFJ: 'gentle_healing',
+        INFJ: 'artistic_mood',
+        INFP: 'artistic_mood',
+        INTJ: 'cool_minimal',
+        INTP: 'cool_minimal',
+        ISTP: 'urban_sharp',
+        ESTJ: 'urban_sharp',
+        ENTJ: 'urban_sharp',
+        ISFP: 'relaxed_free',
+        ENFP: 'relaxed_free',
+        ESFP: 'bright_social',
+        ESTP: 'edgy_expressive',
+        ENTP: 'edgy_expressive'
+      },
+      personalityStyleLabels: {
+        campus_clean: '清爽学院感',
+        gentle_healing: '温柔治愈感',
+        artistic_mood: '文艺氛围感',
+        cool_minimal: '高级克制感',
+        urban_sharp: '都市利落感',
+        relaxed_free: '自由松弛感',
+        bright_social: '明亮外放感',
+        edgy_expressive: '先锋表达感'
+      },
       zodiacList: [
         { key: 'rat', label: '鼠' },
         { key: 'ox', label: '牛' },
@@ -733,10 +765,13 @@
         { key: 'monkey', label: '猴' },
         { key: 'rooster', label: '鸡' },
         { key: 'dog', label: '狗' },
-        { key: 'pig', label: '猪' }
+        { key: 'pig', label: '猪' },
+        { key: 'cat', label: '猫' },
+        { key: 'dolphin', label: '海豚' },
+        { key: 'panda', label: '熊猫' }
       ],
       zodiacLabels: {
-        rat: '鼠', ox: '牛', tiger: '虎', rabbit: '兔', dragon: '龙', snake: '蛇', horse: '马', sheep: '羊', monkey: '猴', rooster: '鸡', dog: '狗', pig: '猪'
+        rat: '鼠', ox: '牛', tiger: '虎', rabbit: '兔', dragon: '龙', snake: '蛇', horse: '马', sheep: '羊', monkey: '猴', rooster: '鸡', dog: '狗', pig: '猪', cat: '猫', dolphin: '海豚', panda: '熊猫'
       }
     };
 
@@ -750,13 +785,11 @@
       currentDesc: '等待上传头像',
       currentMode: 'idle',
       activePanel: '',
-      selectedAge: 20,
+      selectedPersonality: '',
       selectedZodiac: '',
-      ageCache: new Map(),
+      personalityCache: new Map(),
       zodiacCache: new Map(),
       isLoading: false,
-      isAgeAnimating: false,
-      animationTimer: null,
       confirmCandidate: null,
       longPressTempOriginal: false,
       lastRenderedResult: ''
@@ -779,12 +812,13 @@
       closeSheetBtn: document.getElementById('closeSheetBtn'),
       sheetTitle: document.getElementById('sheetTitle'),
       sheetDesc: document.getElementById('sheetDesc'),
-      agePanel: document.getElementById('agePanel'),
+      personalityPanel: document.getElementById('personalityPanel'),
       zodiacPanel: document.getElementById('zodiacPanel'),
-      ageRange: document.getElementById('ageRange'),
-      ageCurrent: document.getElementById('ageCurrent'),
-      showOriginalBtn: document.getElementById('showOriginalBtn'),
-      playAgeBtn: document.getElementById('playAgeBtn'),
+      personalityTrigger: document.getElementById('personalityTrigger'),
+      personalityChosen: document.getElementById('personalityChosen'),
+      personalityArrow: document.getElementById('personalityArrow'),
+      personalityMenu: document.getElementById('personalityMenu'),
+      personalityGenerateBtn: document.getElementById('personalityGenerateBtn'),
       zodiacTrigger: document.getElementById('zodiacTrigger'),
       zodiacChosen: document.getElementById('zodiacChosen'),
       zodiacArrow: document.getElementById('zodiacArrow'),
@@ -793,7 +827,7 @@
       zodiacRetryBtn: document.getElementById('zodiacRetryBtn'),
       uploadBtn: document.getElementById('uploadBtn'),
       cameraBtn: document.getElementById('cameraBtn'),
-      ageBtn: document.getElementById('ageBtn'),
+      personalityBtn: document.getElementById('personalityBtn'),
       zodiacBtn: document.getElementById('zodiacBtn'),
       uploadInput: document.getElementById('uploadInput'),
       cameraInput: document.getElementById('cameraInput'),
@@ -810,11 +844,11 @@
     init();
 
     function init() {
+      renderPersonalityMenu();
       renderZodiacMenu();
-      bindEvents();
-      updateAgeLabel();
       renderScene();
-      setStatus('先上传或拍摄头像，再开始生成效果。当前版本不会再弹窗输入后端地址。');
+      bindEvents();
+      setStatus('先上传或拍摄头像，再使用人格照片或动物头像功能。');
     }
 
     function bindEvents() {
@@ -823,15 +857,13 @@
       els.uploadInput.addEventListener('change', (e) => handlePickedFile(e, 'upload'));
       els.cameraInput.addEventListener('change', (e) => handlePickedFile(e, 'camera'));
 
-      els.ageBtn.addEventListener('click', () => togglePanel('age'));
+      els.personalityBtn.addEventListener('click', () => togglePanel('personality'));
       els.zodiacBtn.addEventListener('click', () => togglePanel('zodiac'));
       els.closeSheetBtn.addEventListener('click', closePanels);
       els.panelBackdrop.addEventListener('click', closePanels);
 
-      els.ageRange.addEventListener('input', updateAgeLabel);
-      els.ageRange.addEventListener('change', () => generateAge(Number(els.ageRange.value)));
-      els.showOriginalBtn.addEventListener('click', () => showOriginal(true));
-      els.playAgeBtn.addEventListener('click', playAgeAnimation);
+      els.personalityTrigger.addEventListener('click', togglePersonalityMenu);
+      els.personalityGenerateBtn.addEventListener('click', generatePersonality);
 
       els.zodiacTrigger.addEventListener('click', toggleZodiacMenu);
       els.zodiacOriginalBtn.addEventListener('click', () => showOriginal(true));
@@ -841,7 +873,6 @@
       els.applyConfirmBtn.addEventListener('click', applyConfirmedImage);
 
       bindPressPreview();
-      window.addEventListener('beforeunload', stopAgeAnimation);
     }
 
     function bindPressPreview() {
@@ -859,6 +890,19 @@
       ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(name => els.viewer.addEventListener(name, end));
     }
 
+    function renderPersonalityMenu() {
+      els.personalityMenu.innerHTML = '';
+      CONFIG.personalityList.forEach((mbti) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-chip';
+        btn.textContent = mbti;
+        btn.dataset.key = mbti;
+        btn.addEventListener('click', () => choosePersonality(mbti));
+        els.personalityMenu.appendChild(btn);
+      });
+      updatePersonalitySelection();
+    }
+
     function renderZodiacMenu() {
       els.zodiacMenu.innerHTML = '';
       CONFIG.zodiacList.forEach(item => {
@@ -869,6 +913,7 @@
         btn.addEventListener('click', () => chooseZodiac(item.key));
         els.zodiacMenu.appendChild(btn);
       });
+      updateZodiacSelection();
     }
 
     async function handlePickedFile(event, source) {
@@ -909,12 +954,8 @@
         state.currentImageUrl = dataUrl;
         state.lastRenderedResult = '';
         state.currentLabel = '原图';
-        state.currentDesc = source === 'camera' ? '已确认拍摄头像，可继续使用年龄线或十二生肖。' : '已确认上传头像，可继续使用年龄线或十二生肖。';
+        state.currentDesc = source === 'camera' ? '已确认拍摄头像，可继续生成人格写真或动物头像。' : '已确认上传头像，可继续生成人格写真或动物头像。';
         state.currentMode = 'original';
-        state.selectedZodiac = '';
-        state.selectedAge = Number(els.ageRange.value || 20);
-        updateAgeLabel();
-        updateZodiacSelection();
         renderScene();
         closePanels();
         setStatus(source === 'camera' ? '拍摄头像已确认。' : '上传头像已确认。');
@@ -986,27 +1027,33 @@
       state.activePanel = type;
       els.controlSheet.classList.add('show');
       els.panelBackdrop.classList.add('show');
-      els.agePanel.classList.toggle('show', type === 'age');
+      els.personalityPanel.classList.toggle('show', type === 'personality');
       els.zodiacPanel.classList.toggle('show', type === 'zodiac');
-      els.sheetTitle.textContent = type === 'age' ? '年龄线' : '十二生肖';
-      els.sheetDesc.textContent = type === 'age' ? '拖动后松手生成当前年龄效果' : '点击下拉按钮，再选择一个生肖生成头像';
-      els.ageBtn.classList.toggle('active', type === 'age');
+      els.sheetTitle.textContent = type === 'personality' ? '人格照片' : '动物头像';
+      els.sheetDesc.textContent = type === 'personality'
+        ? '选择 MBTI 类型后，生成符合人格气质的年轻人写真'
+        : '点击下拉按钮，再选择一个动物生成头像';
+      els.personalityBtn.classList.toggle('active', type === 'personality');
       els.zodiacBtn.classList.toggle('active', type === 'zodiac');
-      if (type === 'age') {
-        els.ageCurrent.textContent = String(state.selectedAge);
-      }
     }
 
     function closePanels() {
       state.activePanel = '';
       els.controlSheet.classList.remove('show');
       els.panelBackdrop.classList.remove('show');
-      els.agePanel.classList.remove('show');
+      els.personalityPanel.classList.remove('show');
       els.zodiacPanel.classList.remove('show');
+      els.personalityMenu.classList.remove('show');
       els.zodiacMenu.classList.remove('show');
+      els.personalityArrow.textContent = '▾';
       els.zodiacArrow.textContent = '▾';
-      els.ageBtn.classList.remove('active');
+      els.personalityBtn.classList.remove('active');
       els.zodiacBtn.classList.remove('active');
+    }
+
+    function togglePersonalityMenu() {
+      const open = els.personalityMenu.classList.toggle('show');
+      els.personalityArrow.textContent = open ? '▴' : '▾';
     }
 
     function toggleZodiacMenu() {
@@ -1014,38 +1061,52 @@
       els.zodiacArrow.textContent = open ? '▴' : '▾';
     }
 
-    function updateAgeLabel() {
-      state.selectedAge = Number(els.ageRange.value || 20);
-      els.ageCurrent.textContent = String(state.selectedAge);
+    function choosePersonality(mbti) {
+      state.selectedPersonality = mbti;
+      updatePersonalitySelection();
+      els.personalityMenu.classList.remove('show');
+      els.personalityArrow.textContent = '▾';
+      setStatus(`已选择 ${mbti} · ${getPersonalityStyleLabel(mbti)}。`);
     }
 
-    async function generateAge(age) {
+    async function generatePersonality() {
       if (!ensureReadyForEffects()) return;
-      stopAgeAnimation();
-      state.selectedAge = age;
-      state.currentMode = 'age';
-      const cacheKey = String(age);
-      if (state.ageCache.has(cacheKey)) {
-        const url = state.ageCache.get(cacheKey);
-        state.currentImageUrl = url;
-        state.lastRenderedResult = url;
-        state.currentLabel = `${age}岁`;
-        state.currentDesc = `当前显示缓存结果：${age}岁`;
-        renderScene();
-        setStatus(`已切换到缓存年龄效果：${age}岁。`);
+      if (!state.selectedPersonality) {
+        setStatus('请先选择你的 MBTI 人格类型。');
         return;
       }
 
-      setLoading(true, `正在生成 ${age} 岁效果...`);
-      try {
-        const url = await callGenerateApi({ mode: 'age', value: age });
-        state.ageCache.set(cacheKey, url);
+      const mbti = state.selectedPersonality;
+      const cacheKey = mbti;
+      state.currentMode = 'personality';
+
+      if (state.personalityCache.has(cacheKey)) {
+        const url = state.personalityCache.get(cacheKey);
         state.currentImageUrl = url;
         state.lastRenderedResult = url;
-        state.currentLabel = `${age}岁`;
-        state.currentDesc = `年龄线效果：${age}岁`;
+        state.currentLabel = `${mbti}人格`;
+        state.currentDesc = `人格写真：${mbti} · ${getPersonalityStyleLabel(mbti)}`;
         renderScene();
-        setStatus(`${age} 岁效果已生成。`);
+        setStatus(`已切换到缓存人格写真：${mbti}。`);
+        return;
+      }
+
+      setLoading(true, `正在生成 ${mbti} 人格写真...`);
+      try {
+        const url = await callGenerateApi({
+          mode: 'personality',
+          value: mbti,
+          label: mbti,
+          negativePrompt: CONFIG.personalityNegativePrompt
+        });
+        state.personalityCache.set(cacheKey, url);
+        state.currentImageUrl = url;
+        state.lastRenderedResult = url;
+        state.currentLabel = `${mbti}人格`;
+        state.currentDesc = `人格写真：${mbti} · ${getPersonalityStyleLabel(mbti)}`;
+        renderScene();
+        closePanels();
+        setStatus(`${mbti} 人格写真已生成。`);
       } catch (error) {
         console.error(error);
         setStatus(`生成失败：${error.message || error}`);
@@ -1054,9 +1115,22 @@
       }
     }
 
+    function updatePersonalitySelection() {
+      els.personalityChosen.textContent = state.selectedPersonality
+        ? `当前人格：${state.selectedPersonality}`
+        : '我的人格类型';
+      Array.from(els.personalityMenu.children).forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.key === state.selectedPersonality);
+      });
+    }
+
+    function getPersonalityStyleLabel(mbti) {
+      const poolKey = CONFIG.personalityPoolMap[mbti];
+      return CONFIG.personalityStyleLabels[poolKey] || '人格写真';
+    }
+
     async function chooseZodiac(key) {
       if (!ensureReadyForEffects()) return;
-      stopAgeAnimation();
       state.selectedZodiac = key;
       updateZodiacSelection();
       els.zodiacMenu.classList.remove('show');
@@ -1068,21 +1142,26 @@
         state.currentImageUrl = url;
         state.lastRenderedResult = url;
         state.currentLabel = CONFIG.zodiacLabels[key] || key;
-        state.currentDesc = `当前显示缓存生肖效果：${CONFIG.zodiacLabels[key] || key}`;
+        state.currentDesc = `当前显示缓存动物效果：${CONFIG.zodiacLabels[key] || key}`;
         renderScene();
-        setStatus(`已切换到缓存生肖：${CONFIG.zodiacLabels[key] || key}。`);
+        setStatus(`已切换到缓存动物：${CONFIG.zodiacLabels[key] || key}。`);
         return;
       }
 
       setLoading(true, `正在生成 ${CONFIG.zodiacLabels[key] || key} 头像...`);
       try {
-        const url = await callGenerateApi({ mode: 'animal', value: key, label: CONFIG.zodiacLabels[key] || key });
+        const url = await callGenerateApi({
+          mode: 'animal',
+          value: key,
+          label: CONFIG.zodiacLabels[key] || key,
+          negativePrompt: CONFIG.zodiacNegativePrompt
+        });
         state.zodiacCache.set(key, url);
         state.currentMode = 'zodiac';
         state.currentImageUrl = url;
         state.lastRenderedResult = url;
         state.currentLabel = CONFIG.zodiacLabels[key] || key;
-        state.currentDesc = `生肖头像：${CONFIG.zodiacLabels[key] || key}`;
+        state.currentDesc = `动物头像：${CONFIG.zodiacLabels[key] || key}`;
         renderScene();
         setStatus(`${CONFIG.zodiacLabels[key] || key} 头像已生成。`);
       } catch (error) {
@@ -1095,45 +1174,15 @@
 
     async function retryCurrentZodiac() {
       if (!state.selectedZodiac) {
-        setStatus('请先在下拉菜单中选择一个生肖。');
+        setStatus('请先在下拉菜单中选择一个动物。');
         return;
       }
       state.zodiacCache.delete(state.selectedZodiac);
       await chooseZodiac(state.selectedZodiac);
     }
 
-    async function playAgeAnimation() {
-      if (!ensureReadyForEffects()) return;
-      stopAgeAnimation();
-      state.currentMode = 'age';
-      state.isAgeAnimating = true;
-      setStatus('年龄动画开始。首次播放会边生成边播放。');
-      await runAgeAnimation(0);
-    }
-
-    async function runAgeAnimation(index) {
-      if (!state.isAgeAnimating) return;
-      if (index >= CONFIG.ageAnimationSequence.length) {
-        state.animationTimer = setTimeout(() => runAgeAnimation(0), 1800);
-        return;
-      }
-      const age = CONFIG.ageAnimationSequence[index];
-      els.ageRange.value = String(age);
-      updateAgeLabel();
-      await generateAge(age);
-      if (!state.isAgeAnimating) return;
-      state.animationTimer = setTimeout(() => runAgeAnimation(index + 1), 1300);
-    }
-
-    function stopAgeAnimation() {
-      state.isAgeAnimating = false;
-      clearTimeout(state.animationTimer);
-      state.animationTimer = null;
-    }
-
     function showOriginal(showStatus) {
       if (!state.originalDataUrl) return;
-      stopAgeAnimation();
       state.currentMode = 'original';
       state.currentImageUrl = state.originalDataUrl;
       state.currentLabel = '原图';
@@ -1151,13 +1200,13 @@
     }
 
     function updateZodiacSelection() {
-      els.zodiacChosen.textContent = state.selectedZodiac ? `当前生肖：${CONFIG.zodiacLabels[state.selectedZodiac]}` : '请选择十二生肖';
+      els.zodiacChosen.textContent = state.selectedZodiac ? `当前动物：${CONFIG.zodiacLabels[state.selectedZodiac]}` : '请选择动物头像';
       Array.from(els.zodiacMenu.children).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.key === state.selectedZodiac);
       });
     }
 
-    async function callGenerateApi({ mode, value, label }) {
+    async function callGenerateApi({ mode, value, label, negativePrompt, customPrompt = '' }) {
       const apiBase = await ensureApiBase();
       const endpoint = `${apiBase.replace(/\/$/, '')}/generate`;
       const payload = {
@@ -1166,8 +1215,8 @@
         value,
         label: label || '',
         size: CONFIG.size,
-        negativePrompt: CONFIG.negativePrompt,
-        customPrompt: ''
+        negativePrompt: negativePrompt || CONFIG.zodiacNegativePrompt,
+        customPrompt
       };
 
       let response;
@@ -1208,8 +1257,7 @@
     }
 
     function resetCaches() {
-      stopAgeAnimation();
-      state.ageCache.clear();
+      state.personalityCache.clear();
       state.zodiacCache.clear();
     }
 
@@ -1227,7 +1275,7 @@
       els.sceneDesc.textContent = desc;
       els.modeTag.textContent = modeText(state.currentMode);
       els.hintPill.textContent = hasImage
-        ? (state.currentMode === 'original' ? '可点击“年龄线”或“十二生肖”开始生成' : '长按主图可临时查看原图')
+        ? (state.currentMode === 'original' ? '可点击“人格照片”或“动物头像”开始生成' : '长按主图可临时查看原图')
         : '上传头像后，四个按钮都围绕这个主显示区工作';
     }
 
@@ -1236,8 +1284,8 @@
     }
 
     function modeText(mode) {
-      if (mode === 'age') return '年龄效果';
-      if (mode === 'zodiac') return '生肖效果';
+      if (mode === 'personality') return '人格写真';
+      if (mode === 'zodiac') return '动物头像';
       if (mode === 'original') return '原图已确认';
       return '未开始';
     }
