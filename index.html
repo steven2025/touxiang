@@ -528,9 +528,11 @@
 
     .bottom-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      justify-content: center;
+      align-items: stretch;
       gap: 8px;
-      padding: 8px;
+      padding: 8px 10px;
       border-radius: 24px;
       background: rgba(255,255,255,0.88);
       border: 1px solid rgba(255,255,255,0.78);
@@ -551,6 +553,13 @@
       font-size: 12px;
       font-weight: 800;
       border: 1px solid transparent;
+      min-width: 0;
+    }
+
+    .bottom-btn .label {
+      display: block;
+      white-space: nowrap;
+      line-height: 1.15;
     }
 
     .bottom-btn.active {
@@ -653,11 +662,16 @@
 
       .bottom-btn {
         min-height: 58px;
+        font-size: 11px;
+      }
+
+      .bottom-btn .icon {
+        font-size: 18px;
       }
 
       .bottom-grid {
         gap: 6px;
-        padding: 7px;
+        padding: 7px 8px;
       }
 
       .status-inline {
@@ -668,6 +682,15 @@
     @media (max-width: 340px) {
       .hidden-menu {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .bottom-btn {
+        min-height: 56px;
+        font-size: 10.5px;
+      }
+
+      .bottom-btn .icon {
+        font-size: 17px;
       }
 
       .modal-actions,
@@ -761,21 +784,25 @@
 
   <nav class="bottom-bar">
     <div class="bottom-grid">
+      <button class="bottom-btn" id="bgmBtn" aria-pressed="true" aria-label="背景音乐开关">
+        <span class="icon" id="bgmIcon">🔊</span>
+        <span class="label" id="bgmLabel">音乐开</span>
+      </button>
       <button class="bottom-btn" id="uploadBtn">
         <span class="icon">🖼️</span>
-        <span>上传头像</span>
+        <span class="label">上传头像</span>
       </button>
       <button class="bottom-btn" id="cameraBtn">
         <span class="icon">📷</span>
-        <span>拍摄头像</span>
+        <span class="label">拍摄头像</span>
       </button>
       <button class="bottom-btn" id="personalityBtn">
         <span class="icon">🧠</span>
-        <span>人格照片</span>
+        <span class="label">人格照片</span>
       </button>
       <button class="bottom-btn" id="zodiacBtn">
         <span class="icon">🐲</span>
-        <span>动物头像</span>
+        <span class="label">动物头像</span>
       </button>
     </div>
   </nav>
@@ -792,6 +819,15 @@
     </div>
   </div>
 
+  <audio
+    id="bgmAudio"
+    src="https://2026417.cd.bcebos.com/bgm.mp3"
+    preload="auto"
+    loop
+    playsinline
+    webkit-playsinline="true"
+  ></audio>
+
   <input id="uploadInput" class="hidden-input" type="file" accept="image/*" />
   <input id="cameraInput" class="hidden-input" type="file" accept="image/*" capture="user" />
 
@@ -800,9 +836,11 @@
     const CONFIG = {
       storageKey: 'ai_avatar_mobile_ui_v1',
       apiBaseKey: 'ai_avatar_api_base_v1',
+      bgmStorageKey: 'ai_avatar_bgm_enabled_v1',
+      bgmUrl: 'https://2026417.cd.bcebos.com/bgm.mp3',
       fixedApiBase: 'https://3sba6rn5c8vwr.cfc-execute.gz.baidubce.com/touxiang2026418-1',
       size: '1024x1024',
-      zodiacNegativePrompt: '模糊，低清晰度，低分辨率，双脸，多人，额外肢体，文字，水印，畸形五官，过曝，过度磨皮',
+      zodiacNegativePrompt: '完整动物脸，纯动物头，兽脸，中脸动物化，眼睛到嘴唇区域被改成动物结构，颧骨以内区域被毛发鳞片羽毛覆盖，面中部前突，长嘴筒，长吻，鸟喙，夸张猪鼻，夸张犬口，夸张猴嘴，鼻梁断裂，鼻头过大，嘴型漂移，嘴角位置改变，眼型改变，眼距改变，五官比例失真，双脸，多人，水印，文字，夸张卡通，低幼Q版，面部识别度丢失，人物不像本人',
       personalityNegativePrompt: '夸张变脸，失去人物熟悉感，面部不像本人，低幼卡通，廉价特效，过度浓妆，网红脸，夸张瘦脸，大眼，证件照感，老气，土气，俗气，过曝，脏污背景，水印，文字，畸形五官，多人',
       personalityList: [
         'ISTJ', 'ISFJ', 'INFJ', 'INTJ',
@@ -877,7 +915,9 @@
       isLoading: false,
       confirmCandidate: null,
       longPressTempOriginal: false,
-      lastRenderedResult: ''
+      lastRenderedResult: '',
+      bgmEnabled: readBgmEnabled(),
+      bgmResumeAfterVisibility: false
     };
 
     const els = {
@@ -911,6 +951,10 @@
       zodiacMenu: document.getElementById('zodiacMenu'),
       zodiacOriginalBtn: document.getElementById('zodiacOriginalBtn'),
       zodiacRetryBtn: document.getElementById('zodiacRetryBtn'),
+      bgmBtn: document.getElementById('bgmBtn'),
+      bgmIcon: document.getElementById('bgmIcon'),
+      bgmLabel: document.getElementById('bgmLabel'),
+      bgmAudio: document.getElementById('bgmAudio'),
       uploadBtn: document.getElementById('uploadBtn'),
       cameraBtn: document.getElementById('cameraBtn'),
       personalityBtn: document.getElementById('personalityBtn'),
@@ -933,11 +977,14 @@
       renderPersonalityMenu();
       renderZodiacMenu();
       renderScene();
+      syncBgmUi();
       bindEvents();
+      setupBgm();
       setStatus('先上传或拍摄头像，再使用人格照片或动物头像功能。');
     }
 
     function bindEvents() {
+      els.bgmBtn.addEventListener('click', toggleBgm);
       els.uploadBtn.addEventListener('click', () => els.uploadInput.click());
       els.cameraBtn.addEventListener('click', () => els.cameraInput.click());
       els.uploadInput.addEventListener('change', (e) => handlePickedFile(e, 'upload'));
@@ -959,6 +1006,103 @@
       els.applyConfirmBtn.addEventListener('click', applyConfirmedImage);
 
       bindPressPreview();
+    }
+
+
+    function readBgmEnabled() {
+      try {
+        const raw = localStorage.getItem(CONFIG.bgmStorageKey);
+        return raw === null ? true : raw === '1';
+      } catch (error) {
+        return true;
+      }
+    }
+
+    function persistBgmEnabled() {
+      try {
+        localStorage.setItem(CONFIG.bgmStorageKey, state.bgmEnabled ? '1' : '0');
+      } catch (error) {
+        // ignore
+      }
+    }
+
+    function syncBgmUi() {
+      const isOn = !!state.bgmEnabled;
+      els.bgmBtn.classList.toggle('active', isOn);
+      els.bgmBtn.setAttribute('aria-pressed', String(isOn));
+      els.bgmIcon.textContent = isOn ? '🔊' : '🔇';
+      els.bgmLabel.textContent = isOn ? '音乐开' : '音乐关';
+    }
+
+    async function attemptPlayBgm() {
+      const audio = els.bgmAudio;
+      if (!audio || !state.bgmEnabled) return false;
+      try {
+        audio.muted = false;
+        audio.volume = 0.42;
+        audio.loop = true;
+        if (!audio.src) {
+          audio.src = CONFIG.bgmUrl;
+        }
+        await audio.play();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function pauseBgm() {
+      const audio = els.bgmAudio;
+      if (!audio) return;
+      audio.pause();
+    }
+
+    function setupBgm() {
+      const audio = els.bgmAudio;
+      if (!audio) return;
+      audio.src = CONFIG.bgmUrl;
+      audio.preload = 'auto';
+      audio.loop = true;
+      audio.volume = 0.42;
+
+      const tryUnlockPlay = () => {
+        if (state.bgmEnabled && audio.paused) {
+          attemptPlayBgm();
+        }
+      };
+
+      document.addEventListener('touchstart', tryUnlockPlay, { passive: true });
+      document.addEventListener('click', tryUnlockPlay, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          state.bgmResumeAfterVisibility = state.bgmEnabled && !audio.paused;
+          audio.pause();
+          return;
+        }
+        if (state.bgmEnabled && (state.bgmResumeAfterVisibility || audio.paused)) {
+          attemptPlayBgm();
+        }
+        state.bgmResumeAfterVisibility = false;
+      });
+
+      if (state.bgmEnabled) {
+        attemptPlayBgm();
+      }
+    }
+
+    async function toggleBgm() {
+      state.bgmEnabled = !state.bgmEnabled;
+      persistBgmEnabled();
+      syncBgmUi();
+
+      if (state.bgmEnabled) {
+        const played = await attemptPlayBgm();
+        setStatus(played ? '背景音乐已开启。' : '背景音乐已开启，首次点按页面后开始播放。');
+      } else {
+        pauseBgm();
+        setStatus('背景音乐已关闭。');
+      }
     }
 
     function bindPressPreview() {
